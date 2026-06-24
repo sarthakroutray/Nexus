@@ -2,6 +2,7 @@
 node_modules/
 dist/
 .env
+.env.*
 .astro/
 
 # ---- Java / Spring Boot ----
@@ -30,3 +31,17 @@ ios/Pods/
 *.iml
 .vscode/
 *.swp
+
+# ---- Local agent / workspace tooling ----
+.agents/
+.codex/
+.commandcode/
+
+# ---- LaTeX build artifacts ----
+*.aux
+*.log
+*.out
+*.toc
+
+# ---- Local documentation exports ----
+nexus_backend_architecture.pdf

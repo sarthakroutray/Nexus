@@ -1,0 +1,617 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=0.8in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+
+\definecolor{NexusBlue}{HTML}{1F4E79}
+\definecolor{NexusGray}{HTML}{F4F6F8}
+\definecolor{CodeFrame}{HTML}{D7DEE8}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=NexusBlue,
+  urlcolor=NexusBlue,
+  pdftitle={Nexus Finance Super App Technical Architecture}
+}
+
+\pagestyle{fancy}
+\setlength{\headheight}{14pt}
+\fancyhf{}
+\lhead{Nexus Finance}
+\rhead{Super App Architecture}
+\cfoot{\thepage}
+
+\titleformat{\section}{\large\bfseries\color{NexusBlue}}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{0.95em}{0.5em}
+\titlespacing*{\subsection}{0pt}{0.7em}{0.35em}
+\setlist[itemize]{leftmargin=1.1em,itemsep=0.15em,topsep=0.15em}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.42em}
+\renewcommand{\arraystretch}{1.15}
+\emergencystretch=2em
+\setlength{\emergencystretch}{3em}
+\setlength{\tabcolsep}{4pt}
+\Urlmuskip=0mu plus 1mu
+\def\UrlBreaks{\do\/\do-\do\_\do\.\do\:\do\?\do\&\do\=\do\#}
+
+\lstdefinestyle{nexus}{
+  basicstyle=\ttfamily\scriptsize,
+  backgroundcolor=\color{NexusGray},
+  frame=single,
+  rulecolor=\color{CodeFrame},
+  framerule=0.35pt,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  tabsize=2
+}
+\lstdefinelanguage{json}{morestring=[b]",morekeywords={true,false,null}}
+\lstdefinelanguage{properties}{morecomment=[l]{\#}}
+\lstset{style=nexus}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcommand{\code}[1]{\path{#1}}
+
+\title{\textbf{Nexus Finance Super App}\\Technical Architecture Document}
+\author{Nexus Finance Engineering}
+\date{June 24, 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\section{Executive Summary}
+\subsection{System Role}
+Nexus Finance is a super app with three main parts: a Flutter host app, a set of Astro mini-apps, and a Spring Boot backend. The host app handles login, navigation, wallet views, and embedded mini-app runtime. The mini-apps implement individual user journeys such as digital gold purchase, insurance purchase, and bill splitting. The backend owns authentication, wallet state, transfers, and mini-app discovery.
+
+\subsection{Consumers and Integration Model}
+\begin{longtable}{p{0.22\linewidth} p{0.24\linewidth} p{0.46\linewidth}}
+\toprule
+\textbf{Consumer} & \textbf{Technology} & \textbf{Integration Responsibility} \\
+\midrule
+Host App & Flutter mobile/web shell & Queries the mini-app registry, authenticates users, fetches wallet balances, renders embedded mini-apps, and initiates transfers. \\
+Mini-Apps & Astro/Web applications & Run inside the host application's WebView container and call wallet APIs through a WebView bridge or directly with Bearer JWT tokens. Example mini-apps are Nexus Digital Gold, InsureMe Micro-Insurance, and Split-It Bill Splitter. \\
+\bottomrule
+\end{longtable}
+
+\begin{lstlisting}[language={},caption={Integration flow}]
+Flutter Host App (Mobile/Web)
+  -> Authenticates and fetches registry
+Spring Boot Wallet Engine (Neon PostgreSQL)
+  <- Deducts / credits funds through JWT-backed API calls
+Mini-App WebView (Astro)
+\end{lstlisting}
+
+\subsection{Client Tier Composition}
+The client side is split between a Flutter shell and Astro mini-apps. The shell is the primary application from the user's perspective. It is responsible for login, dashboard presentation, wallet access, and loading mini-apps in a controlled runtime. Each Astro mini-app focuses on a specific workflow and relies on the shell and backend for identity and wallet access rather than maintaining those concerns itself.
+
+\begin{longtable}{p{0.22\linewidth} p{0.32\linewidth} p{0.38\linewidth}}
+\toprule
+\textbf{Frontend Tier} & \textbf{Owned Concerns} & \textbf{Backend Dependency} \\
+\midrule
+Flutter Host App & Login surfaces, registry fetch, shell navigation, WebView lifecycle, wallet overview, and transfer initiation. & Calls authentication APIs, registry APIs, and wallet APIs as the primary orchestration client. \\
+Astro Mini-Apps & Embedded task flows such as purchase, policy selection, or bill split settlement. & Invoke wallet mutation endpoints and rely on host-provided session context or direct Bearer JWT usage. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Architectural Pattern}
+The implementation follows a flat layer architecture. Controllers act as REST adapters and interact directly with Spring Data JPA repositories. Transaction boundaries are provided by Spring Data and Hibernate persistence behavior. If the system evolves toward double-entry accounting, external banking integrations, or cross-domain orchestration, a dedicated service layer can be introduced under \code{com.nexus.finance.service}.
+
+\subsection{Super App Architectural Model}
+Nexus uses a standard super app split. The Flutter host app is the shell. The Astro mini-apps are feature modules loaded inside that shell. The Spring Boot backend provides shared services used by every module, including authentication, wallet operations, and the mini-app registry. This keeps wallet logic and user identity centralized while allowing product features to be delivered as smaller independent apps.
+
+\begin{longtable}{p{0.23\linewidth} p{0.26\linewidth} p{0.43\linewidth}}
+\toprule
+\textbf{Super App Layer} & \textbf{Nexus Component} & \textbf{Architectural Responsibility} \\
+\midrule
+Experience Shell & Flutter Host App & Provides a unified container for authentication, navigation, mini-app launch, wallet views, and consistent user session handling across embedded experiences. \\
+Capability Modules & Astro/Web Mini-Apps & Deliver task-specific journeys such as digital gold purchase, travel micro-insurance, and bill splitting without owning the primary wallet ledger or user identity system. \\
+Shared Trust Plane & Spring Boot Wallet Engine & Centralizes authentication, bearer token issuance, wallet balance mutation, peer-to-peer transfer execution, and exposure of registry metadata used by the shell. \\
+Shared Data Plane & Neon PostgreSQL & Persists the cross-mini-app wallet state and user credentials that must survive across sessions and across mini-app contexts. \\
+\bottomrule
+\end{longtable}
+
+This split lets mini-apps change independently without fragmenting the wallet system. Mini-apps do not own balances, credentials, or service discovery. Those responsibilities stay in shared platform components so the user gets one account, one wallet, and one host application regardless of which mini-app is active.
+
+\begin{longtable}{p{0.25\linewidth} p{0.65\linewidth}}
+\toprule
+\textbf{Super App Concern} & \textbf{Backend Implication} \\
+\midrule
+Mini-App Discovery & The registry endpoint functions as a control-plane contract between the host shell and available mini-app inventory. The host does not hardcode the entire experience catalog. \\
+Shared Wallet Ownership & All mini-app purchase or transfer flows delegate fund mutation to the wallet engine rather than maintaining isolated balances per mini-app. \\
+Session Portability & JWT-based identity allows a user authenticated in the host shell to invoke backend operations from embedded mini-app contexts without duplicating login state inside each mini-app. \\
+Embedded Runtime Isolation & Mini-apps remain presentation and workflow modules. Sensitive ledger mutation and credential validation remain server-side responsibilities. \\
+Cross-App Consistency & Standard balance contracts, shared seed users, and a centralized registry create a uniform integration surface across the host app and every mini-app module. \\
+\bottomrule
+\end{longtable}
+
+In practice, the platform works as one app made from several cooperating applications. The host app owns presentation and navigation, the mini-apps own feature-specific UI flows, and the backend provides the shared system contracts they all depend on.
+
+\section{Technical Matrix}
+\begin{longtable}{p{0.14\linewidth} p{0.20\linewidth} p{0.12\linewidth} p{0.46\linewidth}}
+\toprule
+\textbf{Layer} & \textbf{Component} & \textbf{Version} & \textbf{Rationale} \\
+\midrule
+Runtime & Java Development Kit (JDK) & \code{17} & Long Term Support release with modern language features and production-grade runtime support. \\
+Host Shell & Flutter & Current repository implementation & Cross-platform shell technology used to deliver the unified login, dashboard, wallet visibility, and embedded mini-app runtime across mobile and web surfaces. \\
+Mini-App Runtime & Astro & Current repository implementation & Lightweight web framework used for independently rendered mini-app modules loaded within the host application container. \\
+Framework & Spring Boot & \code{3.2.5} & Standard Java backend framework providing dependency injection, auto-configuration, and embedded server lifecycle management. \\
+Database & PostgreSQL (Neon) & \code{16} & Serverless PostgreSQL selected for transactional integrity, numeric precision, and managed operations. \\
+ORM & Hibernate via Spring Data JPA & \code{6.x} & Maps Java entities to PostgreSQL tables and supports collection persistence through JPA. \\
+Auth / Security & Java JWT (Auth0) & \code{4.4.0} & Issues and verifies stateless JWTs for sensitive wallet access control. \\
+Hash Utility & jBCrypt & \code{0.4} & Provides BCrypt password hashing and verification. \\
+Build System & Apache Maven & \code{3.9+} & Manages dependencies, compilation targets, packaging, and deployable artifact generation. \\
+\bottomrule
+\end{longtable}
+
+\section{Package Topology}
+\subsection{Repository Tree}
+\begin{lstlisting}[language={},caption={Overall workspace tree}]
+Nexus/
++-- backend/
+|   +-- pom.xml
+|   +-- src/main/java/com/nexus/finance/
+|   |   +-- controller/
+|   |   +-- model/
+|   |   +-- repository/
+|   |   +-- security/
+|   +-- src/main/resources/application.properties
++-- host-app/
+|   +-- pubspec.yaml
+|   +-- lib/
+|       +-- main.dart
+|       +-- screens/
+|           +-- login_screen.dart
+|           +-- register_screen.dart
+|           +-- dashboard_screen.dart
+|           +-- mini_app_runtime.dart
+|           +-- secure_session_manager.dart
++-- mini-apps/
+|   +-- gold-app/
+|   |   +-- package.json
+|   |   +-- astro.config.mjs
+|   |   +-- src/pages/index.astro
+|   +-- insure-app/
+|   |   +-- package.json
+|   |   +-- astro.config.mjs
+|   |   +-- src/pages/index.astro
+|   +-- split-app/
+|       +-- package.json
+|       +-- astro.config.mjs
+|       +-- src/pages/index.astro
+\end{lstlisting}
+
+\subsection{Application Topology}
+The repository is organized around the same boundaries used at runtime. \code{host-app/} contains the Flutter shell. \code{mini-apps/} contains the Astro modules. \code{backend/} contains the shared API and wallet services. The source layout therefore matches the deployed system layout closely enough that each major product layer can be worked on independently.
+
+\subsection{Responsibility Matrix}
+\begin{longtable}{p{0.32\linewidth} p{0.60\linewidth}}
+\toprule
+\textbf{Package or File} & \textbf{Engineering Responsibility} \\
+\midrule
+\code{host-app/lib/main.dart} & Flutter shell bootstrap and host application startup. \\
+\code{host-app/lib/screens/dashboard_screen.dart} & Primary host dashboard surface for wallet viewing and module launch. \\
+\code{host-app/lib/screens/mini_app_runtime.dart} & Embedded runtime boundary responsible for loading mini-app web content inside the host shell. \\
+\code{host-app/lib/screens/secure_session_manager.dart} & Host-side session continuity and secure token lifecycle handling. \\
+\code{mini-apps/gold-app/src/pages/index.astro} & Digital gold mini-app entry surface. \\
+\code{mini-apps/insure-app/src/pages/index.astro} & Micro-insurance mini-app entry surface. \\
+\code{mini-apps/split-app/src/pages/index.astro} & Bill splitting mini-app entry surface. \\
+\code{com.nexus.finance.NexusBackendApplication} & Backend platform bootstrap and component activation. \\
+\code{controller/AuthController.java} & Registration, login, password hashing, credential verification, and JWT issuance. \\
+\code{controller/MiniAppRegistryController.java} & Mini-app discovery and metadata delivery. \\
+\code{controller/WalletController.java} & Balance retrieval, wallet mutation, transaction response generation, and transfer workflows. \\
+\code{model/User.java} & JPA entity for credentials and multi-currency balances. \\
+\code{model/MiniApp.java} & Immutable mini-app metadata model. \\
+\code{repository/UserRepository.java} & User persistence abstraction over PostgreSQL. \\
+\code{security/DataSeeder.java} & Idempotent baseline data seeding. \\
+\code{security/JwtInterceptor.java} & Bearer token verification and authenticated request scoping. \\
+\code{security/JwtUtil.java} & HMAC-SHA256 JWT creation and validation. \\
+\code{security/WebMvcConfig.java} & Interceptor path binding for protected API routes. \\
+\code{resources/application.properties} & Runtime port, datasource, and Hibernate configuration. \\
+\bottomrule
+\end{longtable}
+
+\section{Data Modeling}
+\subsection{Persistence Structure}
+The persistence layer maps \code{User.java} to the \code{users} table. Multi-currency balances are stored through an \code{@ElementCollection} of \code{Map<String, BigDecimal>} values mapped into the dependent \code{user\_balances} table. This design avoids a heavier balance entity while preserving normalized relational storage.
+
+\begin{lstlisting}[language={},caption={Entity relationship summary}]
+users
+  username VARCHAR PRIMARY KEY
+  password VARCHAR NOT NULL
+
+user_balances
+  username VARCHAR FOREIGN KEY -> users.username
+  currency VARCHAR PRIMARY KEY COMPONENT
+  balance NUMERIC(38,2)
+\end{lstlisting}
+
+\subsection{Schema Definition}
+\begin{lstlisting}[language=SQL,caption={PostgreSQL DDL}]
+CREATE TABLE users (
+    username VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    PRIMARY KEY (username)
+);
+
+CREATE TABLE user_balances (
+    username VARCHAR(255) NOT NULL,
+    currency VARCHAR(255) NOT NULL,
+    balance NUMERIC(38,2),
+    PRIMARY KEY (username, currency),
+    CONSTRAINT fk_user_balances_username
+        FOREIGN KEY (username)
+        REFERENCES users (username)
+        ON DELETE CASCADE
+);
+\end{lstlisting}
+
+\begin{longtable}{p{0.16\linewidth} p{0.20\linewidth} p{0.56\linewidth}}
+\toprule
+\textbf{Table} & \textbf{Column} & \textbf{Definition} \\
+\midrule
+\code{users} & \code{username} & \code{VARCHAR(255) NOT NULL PRIMARY KEY}; natural user identifier. \\
+\code{users} & \code{password} & \code{VARCHAR(255) NOT NULL}; BCrypt-hashed password material. \\
+\code{user\_balances} & \code{username} & \code{VARCHAR(255) NOT NULL}; parent foreign key to \code{users.username}. \\
+\code{user\_balances} & \code{currency} & \code{VARCHAR(255) NOT NULL}; composite primary key component. \\
+\code{user\_balances} & \code{balance} & \code{NUMERIC(38,2)}; persisted wallet amount. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Identity and Schema Lifecycle}
+The current design uses \code{username} as the natural primary key. This reduces lookup indirection but should migrate to a synthetic \code{UUID} primary key if username mutability, privacy erasure, or long-term ledger retention constraints are introduced. Schema lifecycle is currently driven by:
+
+\begin{lstlisting}[language=properties,caption={Hibernate schema update mode}]
+spring.jpa.hibernate.ddl-auto=update
+\end{lstlisting}
+
+This is suitable for prototyping. Production deployment should switch to \code{validate} and versioned migrations through Flyway or Liquibase.
+
+\section{API Reference}
+\subsection{Endpoint Matrix}
+\begin{longtable}{p{0.08\linewidth} p{0.28\linewidth} p{0.16\linewidth} p{0.16\linewidth} p{0.24\linewidth}}
+\toprule
+\textbf{Method} & \textbf{Path} & \textbf{Area} & \textbf{Authorization} & \textbf{Contract} \\
+\midrule
+POST & \code{/api/auth/register} & Auth & Anonymous & Registers a user and returns a JWT. \\
+POST & \code{/api/auth/login} & Auth & Anonymous & Validates credentials and returns a JWT. \\
+GET & \code{/api/v1/wallet/\{userId\}/balance} & Wallet & Anonymous & Returns balances and auto-creates missing user for testing. \\
+POST & \code{/api/v1/wallet/\{userId\}/deduct} & Wallet & Bearer JWT & Deducts funds from a specified currency balance. \\
+POST & \code{/api/v1/wallet/\{userId\}/credit} & Wallet & Anonymous & Credits funds to a specified currency balance. \\
+POST & \code{/api/v1/wallet/\{userId\}/transfer} & Wallet & Anonymous & Transfers funds to a recipient. \\
+GET & \code{/api/v1/registry/mini-apps} & Registry & Anonymous & Returns active mini-app metadata. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Registration}
+\begin{longtable}{p{0.25\linewidth} p{0.67\linewidth}}
+\toprule
+\textbf{Property} & \textbf{Value} \\
+\midrule
+Method & \code{POST} \\
+Path & \code{/api/auth/register} \\
+Headers & \code{Content-Type: application/json} \\
+Authorization & None \\
+Responses & \code{200 OK}, \code{409 Conflict}, \code{400 Bad Request} \\
+\bottomrule
+\end{longtable}
+\begin{lstlisting}[language=json,caption={Registration request payload}]
+{
+  "username": "tester-99",
+  "password": "mySecurePassword123"
+}
+\end{lstlisting}
+
+\begin{longtable}{p{0.18\linewidth} p{0.18\linewidth} p{0.54\linewidth}}
+\toprule
+\textbf{Case} & \textbf{Status} & \textbf{Response Contract} \\
+\midrule
+Registration success & \code{200 OK} & \code{success=true}, \code{message="User registered successfully"}, \code{token=<jwt>}, \code{username="tester-99"}. \\
+Username already taken & \code{409 Conflict} & \code{success=false}, \code{message="Username is already taken"}. \\
+Empty input & \code{400 Bad Request} & \code{success=false}, \code{message="Username and password cannot be empty"}. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Login}
+\begin{longtable}{p{0.25\linewidth} p{0.67\linewidth}}
+\toprule
+\textbf{Property} & \textbf{Value} \\
+\midrule
+Method & \code{POST} \\
+Path & \code{/api/auth/login} \\
+Headers & \code{Content-Type: application/json} \\
+Authorization & None \\
+Responses & \code{200 OK}, \code{401 Unauthorized} \\
+\bottomrule
+\end{longtable}
+\begin{lstlisting}[language=json,caption={Login request payload}]
+{
+  "username": "tester-99",
+  "password": "mySecurePassword123"
+}
+\end{lstlisting}
+
+\begin{longtable}{p{0.18\linewidth} p{0.18\linewidth} p{0.54\linewidth}}
+\toprule
+\textbf{Case} & \textbf{Status} & \textbf{Response Contract} \\
+\midrule
+Login success & \code{200 OK} & \code{success=true}, \code{token=<jwt>}, \code{username="tester-99"}. \\
+Invalid credentials & \code{401 Unauthorized} & \code{success=false}, \code{message="Invalid username or password"}. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Fetch Wallet Balance}
+\begin{longtable}{p{0.25\linewidth} p{0.67\linewidth}}
+\toprule
+\textbf{Property} & \textbf{Value} \\
+\midrule
+Method & \code{GET} \\
+Path & \code{/api/v1/wallet/\{userId\}/balance} \\
+Authorization & None \\
+Behavior & Automatically creates the user with standard starting balances if it does not exist. \\
+\bottomrule
+\end{longtable}
+\begin{longtable}{p{0.22\linewidth} p{0.68\linewidth}}
+\toprule
+\textbf{Response Field} & \textbf{Contract} \\
+\midrule
+\code{userId} & Returns the requested user identifier, for example \code{"tester-99"}. \\
+\code{balance} & Returns the primary balance projection value \code{1500.00}. \\
+\code{currency} & Returns \code{"USD"} for the primary balance projection. \\
+\code{balances} & Returns the full multi-currency map with \code{USD=1500.00}, \code{EUR=1380.00}, and \code{GBP=1170.00}. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Deduct Funds}
+\begin{longtable}{p{0.25\linewidth} p{0.67\linewidth}}
+\toprule
+\textbf{Property} & \textbf{Value} \\
+\midrule
+Method & \code{POST} \\
+Path & \code{/api/v1/wallet/\{userId\}/deduct} \\
+Headers & \code{Content-Type: application/json}, \code{Authorization: Bearer <token>} \\
+Authorization & Required through JWT interceptor \\
+Responses & \code{200 OK}, \code{401 Unauthorized} \\
+\bottomrule
+\end{longtable}
+\begin{lstlisting}[language=json,caption={Deduct funds request payload}]
+{
+  "amount": "150.00",
+  "currency": "USD"
+}
+\end{lstlisting}
+
+\begin{longtable}{p{0.18\linewidth} p{0.18\linewidth} p{0.54\linewidth}}
+\toprule
+\textbf{Case} & \textbf{Status} & \textbf{Response Contract} \\
+\midrule
+Deduction success & \code{200 OK} & \code{success=true}, \code{message="Funds deducted successfully"}, \code{deductedAmount=150.00}, \code{currency="USD"}, \code{remainingBalance=1350.00}, \code{balances=\{USD:1350.00, EUR:1380.00, GBP:1170.00\}}, \code{txnId="TXN-SRV-4A9B2C8D"}. \\
+Ledger reject & \code{200 OK} & \code{success=false}, \code{message="Insufficient funds in USD"}, \code{remainingBalance=50.00}, \code{balances=\{USD:50.00, EUR:46.00, GBP:39.00\}}. \\
+JWT failure & \code{401 Unauthorized} & \code{success=false}, \code{message="Invalid, expired, or tampered JWT token: The Token's Signature resulted invalid when verified using the Algorithm: HmacSHA256"}, \code{error="Unauthorized"}. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Credit Funds}
+\begin{longtable}{p{0.25\linewidth} p{0.67\linewidth}}
+\toprule
+\textbf{Property} & \textbf{Value} \\
+\midrule
+Method & \code{POST} \\
+Path & \code{/api/v1/wallet/\{userId\}/credit} \\
+Headers & \code{Content-Type: application/json} \\
+Authorization & None \\
+\bottomrule
+\end{longtable}
+\begin{lstlisting}[language=json,caption={Credit funds request payload}]
+{
+  "amount": "500.00",
+  "currency": "EUR"
+}
+\end{lstlisting}
+
+\begin{longtable}{p{0.18\linewidth} p{0.18\linewidth} p{0.54\linewidth}}
+\toprule
+\textbf{Case} & \textbf{Status} & \textbf{Response Contract} \\
+\midrule
+Credit success & \code{200 OK} & \code{success=true}, \code{message="Funds added successfully"}, \code{creditedAmount=500.00}, \code{currency="EUR"}, \code{remainingBalance=1880.00}, \code{balances=\{USD:1500.00, EUR:1880.00, GBP:1170.00\}}. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Transfer Funds}
+\begin{longtable}{p{0.25\linewidth} p{0.67\linewidth}}
+\toprule
+\textbf{Property} & \textbf{Value} \\
+\midrule
+Method & \code{POST} \\
+Path & \code{/api/v1/wallet/\{userId\}/transfer} \\
+Headers & \code{Content-Type: application/json} \\
+Authorization & None \\
+\bottomrule
+\end{longtable}
+\begin{lstlisting}[language=json,caption={Transfer funds request payload}]
+{
+  "amount": "200.00",
+  "recipientId": "sarthak",
+  "currency": "USD"
+}
+\end{lstlisting}
+
+\begin{longtable}{p{0.18\linewidth} p{0.18\linewidth} p{0.54\linewidth}}
+\toprule
+\textbf{Case} & \textbf{Status} & \textbf{Response Contract} \\
+\midrule
+Transfer success & \code{200 OK} & \code{success=true}, \code{message="Transfer successful"}, \code{transferredAmount=200.00}, \code{currency="USD"}, \code{recipientId="sarthak"}, \code{remainingBalance=1300.00}, \code{balances=\{USD:1300.00, EUR:1380.00, GBP:1170.00\}}, \code{txnId="TXN-TRF-F2A8E5C1"}. \\
+Invalid payload & \code{200 OK} & \code{success=false}, \code{message="Recipient ID is required"}. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Mini-App Registry Discovery}
+\begin{longtable}{p{0.25\linewidth} p{0.67\linewidth}}
+\toprule
+\textbf{Property} & \textbf{Value} \\
+\midrule
+Method & \code{GET} \\
+Path & \code{/api/v1/registry/mini-apps} \\
+Authorization & None \\
+Behavior & Entry URLs resolve dynamically based on the incoming request host. \\
+\bottomrule
+\end{longtable}
+\begin{longtable}{p{0.14\linewidth} p{0.19\linewidth} p{0.25\linewidth} p{0.09\linewidth} p{0.08\linewidth} p{0.17\linewidth}}
+\toprule
+\textbf{ID} & \textbf{Display Name} & \textbf{Description} & \textbf{Version} & \textbf{Active} & \textbf{Resolved Entry URL} \\
+\midrule
+\code{gold-app} & Nexus Digital Gold & Invest in fractional digital gold backed by real reserves. & \code{1.0.0} & \code{true} & \code{http://localhost:4321} \\
+\code{insure-app} & InsureMe Micro-Insurance & Protect your travels. Get instant payout coverage for flight delays. & \code{1.0.0} & \code{true} & \code{http://localhost:4322} \\
+\code{split-app} & Split-It Bill Splitter & Easily divide restaurant bills and settle your share with friends. & \code{1.0.0} & \code{true} & \code{http://localhost:4323} \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{0.23\linewidth} p{0.67\linewidth}}
+\toprule
+\textbf{Registry Field} & \textbf{Contract} \\
+\midrule
+\code{id} & Stable mini-app identifier used by the host shell and registry consumer logic. \\
+\code{displayName} & User-facing module name rendered by the host application. \\
+\code{description} & Functional description of the mini-app capability. \\
+\code{iconUrl} & External icon asset URL; values are \code{https://cdn-icons-png.flaticon.com/512/2489/2489756.png}, \code{https://cdn-icons-png.flaticon.com/512/1063/1063376.png}, and \code{https://cdn-icons-png.flaticon.com/512/9638/9638101.png}. \\
+\code{entryUrl} & Runtime-resolved module entry point based on incoming host context. The documented values are localhost ports \code{4321}, \code{4322}, and \code{4323}. \\
+\code{version} & Module version string, documented as \code{1.0.0} for all active modules. \\
+\code{active} & Activation flag used by the host shell to determine visibility and load eligibility. \\
+\bottomrule
+\end{longtable}
+
+\newpage
+\section{Security Middleware}
+\subsection{Password Handling}
+Password hashing is implemented in \code{backend/src/main/java/com/nexus/finance/controller/AuthController.java} using jBCrypt.
+
+Registration uses \code{BCrypt.hashpw(password, BCrypt.gensalt())}. Login validation uses \code{BCrypt.checkpw(password, user.getPassword())}. The backend therefore stores only salted BCrypt hash material and verifies credentials through deterministic BCrypt comparison rather than reversible encryption.
+
+\subsection{JWT Model}
+JWT generation and validation are implemented in \code{backend/src/main/java/com/nexus/finance/security/JwtUtil.java}. The documented configuration is:
+
+\begin{longtable}{p{0.28\linewidth} p{0.64\linewidth}}
+\toprule
+\textbf{Property} & \textbf{Value} \\
+\midrule
+Algorithm & HMAC-SHA256 through \code{Algorithm.HMAC256(SECRET)} \\
+Cryptographic Secret & \code{"nexus-fintech-super-app-jwt-secure-signing-key-2026"} \\
+Token Validity Duration & \code{3600000} milliseconds, exactly one hour \\
+Issuer & \code{"nexus-auth-service"} \\
+Subject & Validated username \\
+IssuedAt & Creation timestamp \\
+ExpiresAt & Creation timestamp plus one hour \\
+\bottomrule
+\end{longtable}
+
+\subsection{Interceptor Path and Flow}
+The interceptor is registered in \code{backend/src/main/java/com/nexus/finance/security/WebMvcConfig.java}:
+
+The protected path registration is \code{registry.addInterceptor(jwtInterceptor).addPathPatterns("/api/v1/wallet/*/deduct")}.
+
+The implementation in \code{backend/src/main/java/com/nexus/finance/security/JwtInterceptor.java} permits \code{OPTIONS} preflight requests, validates the \code{Authorization} header, extracts the \code{Bearer } token, invokes \code{jwtUtil.validateTokenAndGetUsername(token)}, and stores the subject identity in request scope:
+
+On successful validation, the interceptor writes the subject into request scope through \code{request.setAttribute("authenticatedUser", username)}.
+
+Unauthorized responses use the JSON contract \code{\{"success": false, "message": "<detailed verification failure>", "error": "Unauthorized"\}}.
+
+\newpage
+\section{Engineering Guide}
+\subsection{Application Configuration}
+The runtime configuration file is \code{backend/src/main/resources/application.properties}.
+
+\begin{lstlisting}[language=properties,caption={application.properties}]
+# Spring Boot 3.x (Backend for Nexus Finance)
+server.port=8080
+spring.application.name=nexus-backend
+
+# Neon Postgres Database Configuration
+spring.datasource.url=${NEXUS_DB_URL}
+spring.datasource.username=${NEXUS_DB_USERNAME}
+spring.datasource.password=${NEXUS_DB_PASSWORD}
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# Hibernate / JPA configuration
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+
+# Basic CORS allowed origins for local Flutter / Web dev
+# In production, externalize to environment variables or config server
+\end{lstlisting}
+
+\subsection{Seed Data}
+Baseline users are seeded in \code{backend/src/main/java/com/nexus/finance/security/DataSeeder.java}, which implements \code{CommandLineRunner}. Idempotency is preserved through:
+
+Seeder idempotency is enforced through \code{if (!userRepository.existsById("user-001")) \{ ... \}}.
+
+\begin{longtable}{p{0.16\linewidth} p{0.26\linewidth} p{0.15\linewidth} p{0.15\linewidth} p{0.15\linewidth}}
+\toprule
+\textbf{Username} & \textbf{Password} & \textbf{USD} & \textbf{EUR} & \textbf{GBP} \\
+\midrule
+\code{user-001} & \code{password123} hashed with BCrypt & \code{1500.00} & \code{1380.00} & \code{1170.00} \\
+\code{sarthak} & \code{password123} hashed with BCrypt & \code{1500.00} & \code{1380.00} & \code{1170.00} \\
+\bottomrule
+\end{longtable}
+
+\subsection{Build and Run Procedure}
+\begin{lstlisting}[language=bash,caption={Compilation and packaging}]
+mvn clean package
+\end{lstlisting}
+
+Generated artifact:
+
+\begin{lstlisting}[language={},caption={Packaged artifact}]
+target/nexus-backend-0.0.1-SNAPSHOT.jar
+\end{lstlisting}
+
+\begin{lstlisting}[language=bash,caption={Run commands}]
+mvn spring-boot:run
+java -jar target/nexus-backend-0.0.1-SNAPSHOT.jar
+\end{lstlisting}
+
+The service binds to localhost port \code{8080}.
+
+\newpage
+\subsection{Verification Commands}
+\begin{lstlisting}[language=bash,caption={Sandbox integration verification}]
+curl -X GET http://localhost:8080/api/v1/wallet/user-001/balance
+
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"username\": \"user-001\", \"password\": \"password123\"}"
+
+curl -X POST http://localhost:8080/api/v1/wallet/user-001/deduct \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <insert_returned_token_here>" \
+  -d "{\"amount\": \"150.00\", \"currency\": \"USD\"}"
+\end{lstlisting}
+
+\subsection{Production Considerations}
+\begin{longtable}{p{0.25\linewidth} p{0.67\linewidth}}
+\toprule
+\textbf{Area} & \textbf{Required Hardening} \\
+\midrule
+Secrets & Use deployment-injected placeholders such as \code{NEXUS_DB_URL}, \code{NEXUS_DB_USERNAME}, \code{NEXUS_DB_PASSWORD}, and an externalized JWT signing secret rather than embedding live environment-specific values in source-controlled documentation. \\
+Schema Management & Replace \code{update} with \code{validate} and manage schema changes through Flyway or Liquibase. \\
+Authorization & Review anonymous access on balance, credit, and transfer endpoints before production release. \\
+Ledger Integrity & Add immutable transaction history, idempotency, and stronger service-level transactional controls for financial operations. \\
+Seeding & Disable or environment-gate startup seed data outside development and sandbox environments. \\
+\bottomrule
+\end{longtable}
+
+\end{document}
