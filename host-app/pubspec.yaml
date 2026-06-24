@@ -1,0 +1,31 @@
+name: nexus_host
+
+description: >-
+  Nexus Finance — Flutter Host App container with WebView and JSBridge
+
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 0.0.1+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # InAppWebView for hosting Mini-Apps
+  flutter_inappwebview: ^6.1.5
+  # Standard HTTP client for the dashboard API
+  http: ^1.2.0
+  # Hardware Biometrics Authentication
+  local_auth: ^2.2.0
+  # Device Contacts Access
+  flutter_contacts: ^1.1.9
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true

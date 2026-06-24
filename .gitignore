@@ -1,0 +1,32 @@
+# ---- Node / Astro ----
+node_modules/
+dist/
+.env
+.astro/
+
+# ---- Java / Spring Boot ----
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.class
+*.jar
+*.war
+*.ear
+
+# ---- Flutter / Dart ----
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock
+build/
+.generated/
+android/.gradle/
+ios/Pods/
+
+# ---- IDE ----
+.idea/
+*.iml
+.vscode/
+*.swp

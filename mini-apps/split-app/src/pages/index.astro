@@ -1,0 +1,770 @@
+---
+// Split-It Bill Splitter Mini-App
+const title = "Split-It Bill Splitter";
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>{title}</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://cdn-icons-png.flaticon.com https://images.unsplash.com; connect-src 'self' http://localhost:8080 http://10.0.2.2:8080 http://192.168.* ws:;" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif; }
+    
+    body {
+      background: #090d16;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: env(safe-area-inset-top, 1.5rem) 1rem env(safe-area-inset-bottom, 1.5rem) 1rem;
+    }
+
+    #mainContent {
+      width: 100%;
+      max-width: 380px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* Premium Header Card */
+    .header-card {
+      background: linear-gradient(180deg, #131b2e 0%, #0d1324 100%);
+      border: 1px solid #1e293b;
+      border-radius: 20px;
+      padding: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-user {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      background: radial-gradient(circle, #a855f7 0%, #6b21a8 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      box-shadow: 0 4px 12px rgba(168, 85, 247, 0.2);
+    }
+
+    .user-info h2 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .user-info p {
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+
+    .split-badge {
+      background: rgba(168, 85, 247, 0.1);
+      border: 1px solid rgba(168, 85, 247, 0.2);
+      color: #c084fc;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.25rem 0.6rem;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    /* Calculator Card */
+    .calc-card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 24px;
+      padding: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 1rem;
+    }
+
+    /* Input Styling */
+    .input-wrapper {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .currency-symbol {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .bill-input {
+      width: 100%;
+      background: #090d16;
+      border: 1px solid #374151;
+      color: #ffffff;
+      padding: 0.85rem 1rem 0.85rem 2.2rem;
+      border-radius: 14px;
+      font-size: 1.1rem;
+      font-weight: 800;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .bill-input:focus {
+      border-color: #a855f7;
+    }
+
+    /* Slider / Selector Styles */
+    .slider-group {
+      margin-bottom: 1rem;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: #cbd5e1;
+      margin-bottom: 0.4rem;
+      font-weight: 600;
+    }
+
+    .slider-header span {
+      color: #c084fc;
+    }
+
+    .custom-slider {
+      width: 100%;
+      height: 6px;
+      background: #1f2937;
+      border-radius: 5px;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .custom-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #a855f7;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(168, 85, 247, 0.4);
+    }
+
+    /* Stepper Control */
+    .stepper-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #090d16;
+      border: 1px solid #374151;
+      padding: 0.6rem 1rem;
+      border-radius: 14px;
+      margin-bottom: 1.25rem;
+    }
+
+    .stepper-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+
+    .stepper-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .stepper-btn {
+      width: 32px;
+      height: 32px;
+      background: #1f2937;
+      border: 1px solid #374151;
+      color: #ffffff;
+      font-size: 1.2rem;
+      font-weight: 700;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .stepper-btn:active {
+      background: #111827;
+    }
+
+    .stepper-value {
+      font-size: 1rem;
+      font-weight: 800;
+      color: #ffffff;
+      width: 20px;
+      text-align: center;
+    }
+
+    /* Summary Panel */
+    .summary-box {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 18px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin-bottom: 0.5rem;
+    }
+
+    .summary-row.total {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #ffffff;
+      border-top: 1px solid #374151;
+      padding-top: 0.75rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0;
+    }
+
+    /* Output Card */
+    .output-card {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(107, 33, 168, 0.05) 100%);
+      border: 1px solid rgba(168, 85, 247, 0.25);
+      border-radius: 20px;
+      padding: 1.25rem;
+      text-align: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .share-amount {
+      font-size: 2.25rem;
+      font-weight: 900;
+      color: #c084fc;
+      letter-spacing: -1px;
+    }
+
+    /* Action Button */
+    .settle-btn {
+      width: 100%;
+      padding: 1rem;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #a855f7 0%, #6b21a8 100%);
+      color: #ffffff;
+      font-size: 0.95rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.1s ease, opacity 0.2s ease;
+      box-shadow: 0 4px 16px rgba(107, 33, 168, 0.25);
+    }
+
+    .settle-btn:active {
+      transform: scale(0.98);
+    }
+
+    .settle-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Status Notifications */
+    .status {
+      margin-top: 1rem;
+      padding: 0.9rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      line-height: 1.4;
+      border: 1px solid transparent;
+      display: none;
+    }
+
+    .status.success { display: block; background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.2); }
+    .status.error { display: block; background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.2); }
+    .status.info { display: block; background: rgba(148, 163, 184, 0.08); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.15); }
+
+    /* Unauthorized State Card */
+    #unauthorizedState {
+      background: rgba(239, 68, 68, 0.05);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: 24px;
+      padding: 2.25rem 1.5rem;
+      text-align: center;
+      max-width: 360px;
+      display: none;
+      box-shadow: 0 10px 25px rgba(239, 68, 68, 0.05);
+    }
+
+    .warning-icon {
+      font-size: 3.5rem;
+      margin-bottom: 1.25rem;
+      animation: alert-pulse 2s infinite;
+    }
+
+    #unauthorizedState h2 {
+      color: #f87171;
+      font-size: 1.3rem;
+      font-weight: 800;
+      margin-bottom: 0.75rem;
+    }
+
+    #unauthorizedState p {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      margin-bottom: 1.5rem;
+    }
+
+    #unauthorizedReason {
+      font-size: 0.75rem;
+      color: #f87171;
+      font-family: monospace;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.5rem;
+      border-radius: 8px;
+      border: 1px solid rgba(239, 68, 68, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <!-- Main Content Dashboard -->
+  <div id="mainContent">
+    <!-- Header Greeting -->
+    <div class="header-card">
+      <div class="header-user">
+        <div class="avatar">💸</div>
+        <div class="user-info">
+          <h2 id="welcomeUser">Sarthak</h2>
+          <p id="authBadge">Initializing secure handshake...</p>
+        </div>
+      </div>
+      <div class="split-badge">
+        <span>BILL SPLITTER</span>
+      </div>
+    </div>
+
+    <!-- Bill Splitter Settings -->
+    <div class="calc-card">
+      <h3 class="section-title">Split Calculator</h3>
+
+      <!-- Bill Subtotal Input -->
+      <div class="input-wrapper">
+        <span class="currency-symbol" id="mainCurrencySymbol">$</span>
+        <input type="number" id="billSubtotal" class="bill-input" value="60.00" min="0.1" step="0.5" />
+      </div>
+
+      <!-- Stepper for Split Count -->
+      <div class="stepper-row">
+        <span class="stepper-label">Number of Splitters</span>
+        <div class="stepper-controls">
+          <button class="stepper-btn" id="stepperDec">-</button>
+          <span class="stepper-value" id="splitCount">3</span>
+          <button class="stepper-btn" id="stepperInc">+</button>
+        </div>
+      </div>
+
+      <!-- Currency selector row -->
+      <div class="stepper-row" style="margin-top: 1rem;">
+        <span class="stepper-label">Split Currency</span>
+        <select id="currencySelector" style="background: #0f172a; color: #ffffff; border: 1px solid #334155; border-radius: 8px; padding: 0.4rem 0.6rem; font-weight: bold; cursor: pointer; outline: none; font-size: 0.85rem;">
+          <option value="USD">USD ($)</option>
+          <option value="EUR">EUR (€)</option>
+          <option value="GBP">GBP (£)</option>
+        </select>
+      </div>
+
+      <!-- Tip Selector Slider -->
+      <div class="slider-group">
+        <div class="slider-header">
+          <span>Tip Percentage</span>
+          <span id="tipPercentLabel">15%</span>
+        </div>
+        <input type="range" id="tipSlider" class="custom-slider" min="0" max="30" value="15" />
+      </div>
+
+      <!-- Tax Selector Slider -->
+      <div class="slider-group">
+        <div class="slider-header">
+          <span>Tax (GST/VAT)</span>
+          <span id="taxPercentLabel">8%</span>
+        </div>
+        <input type="range" id="taxSlider" class="custom-slider" min="0" max="15" value="8" />
+      </div>
+    </div>
+
+    <!-- Split Participants -->
+    <div class="calc-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+        <h3 class="section-title" style="margin-bottom: 0;">Split Participants</h3>
+        <button id="addContactBtn" style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); color: #c084fc; border-radius: 8px; padding: 0.35rem 0.65rem; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: background 0.2s;">+ Pick Contact</button>
+      </div>
+      <div id="participantsList" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 180px; overflow-y: auto; padding-right: 0.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px dashed rgba(255,255,255,0.05);">
+          <span style="font-size: 0.8rem; font-weight: 700; color: #ffffff;">You (Owner)</span>
+          <span style="font-size: 0.75rem; color: #94a3b8;">Primary Account</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Calculation readout summary -->
+    <div class="calc-card">
+      <h3 class="section-title">Calculation Breakdown</h3>
+
+      <div class="summary-box">
+        <div class="summary-row">
+          <span>Subtotal</span>
+          <span id="summarySubtotal">$60.00</span>
+        </div>
+        <div class="summary-row">
+          <span>Tip Amount</span>
+          <span id="summaryTip">$9.00</span>
+        </div>
+        <div class="summary-row">
+          <span>Tax Amount</span>
+          <span id="summaryTax">$4.80</span>
+        </div>
+        <div class="summary-row total">
+          <span>Grand Total</span>
+          <span id="summaryTotal">$73.80</span>
+        </div>
+      </div>
+
+      <!-- Each Person's Share -->
+      <div class="output-card">
+        <div style="font-size: 0.75rem; color: #cbd5e1; font-weight: 700; margin-bottom: 0.4rem; text-transform: uppercase;">Your Split Share</div>
+        <div class="share-amount"><span id="shareCurrencySymbol">$</span><span id="shareValue">24.60</span></div>
+      </div>
+
+      <!-- Settle Trigger Action -->
+      <button id="settleBtn" class="settle-btn">Settle My Share</button>
+
+      <!-- Status Notification Message -->
+      <div id="statusMessage" class="status"></div>
+    </div>
+
+  </div>
+
+  <!-- Unauthorized Page State Overlay -->
+  <div id="unauthorizedState">
+    <div class="warning-icon">⚠️</div>
+    <h2>Unauthorized Session</h2>
+    <p>Your session token with the parent application is invalid, missing, or expired. Please relaunch this service from your secure dashboard.</p>
+    <div id="unauthorizedReason">Reason: Bridge not loaded</div>
+  </div>
+
+  <script type="module">
+    (() => {
+      const settleBtn = document.getElementById('settleBtn');
+      const billSubtotal = document.getElementById('billSubtotal');
+      const splitCount = document.getElementById('splitCount');
+      const tipSlider = document.getElementById('tipSlider');
+      const taxSlider = document.getElementById('taxSlider');
+      
+      const welcomeUser = document.getElementById('welcomeUser');
+      const authBadge = document.getElementById('authBadge');
+      const statusMessage = document.getElementById('statusMessage');
+
+      const currencySelector = document.getElementById('currencySelector');
+      const mainCurrencySymbol = document.getElementById('mainCurrencySymbol');
+      const shareCurrencySymbol = document.getElementById('shareCurrencySymbol');
+      const addContactBtn = document.getElementById('addContactBtn');
+      const participantsList = document.getElementById('participantsList');
+      
+      let jwtToken = '';
+      let username = '';
+      let numSplitters = 3;
+      let selectedCurrency = 'USD';
+      let participants = []; // Array of { name, phone }
+
+      function getCurrencySymbol(curr) {
+        if (curr === 'EUR') return '€';
+        if (curr === 'GBP') return '£';
+        return '$';
+      }
+
+      currencySelector.addEventListener('change', () => {
+        selectedCurrency = currencySelector.value;
+        const symbol = getCurrencySymbol(selectedCurrency);
+        mainCurrencySymbol.textContent = symbol;
+        shareCurrencySymbol.textContent = symbol;
+        calculateSplits();
+      });
+
+      // Stepper Actions
+      document.getElementById('stepperDec').addEventListener('click', () => {
+        if (numSplitters > 1 + participants.length) {
+          numSplitters--;
+          splitCount.textContent = numSplitters;
+          calculateSplits();
+        }
+      });
+
+      document.getElementById('stepperInc').addEventListener('click', () => {
+        if (numSplitters < 15) {
+          numSplitters++;
+          splitCount.textContent = numSplitters;
+          calculateSplits();
+        }
+      });
+
+      // Slider Actions
+      tipSlider.addEventListener('input', () => {
+        document.getElementById('tipPercentLabel').textContent = `${tipSlider.value}%`;
+        calculateSplits();
+      });
+
+      taxSlider.addEventListener('input', () => {
+        document.getElementById('taxPercentLabel').textContent = `${taxSlider.value}%`;
+        calculateSplits();
+      });
+
+      billSubtotal.addEventListener('input', () => {
+        calculateSplits();
+      });
+
+      function calculateSplits() {
+        const subtotal = parseFloat(billSubtotal.value) || 0;
+        const tipPercent = parseFloat(tipSlider.value) || 0;
+        const taxPercent = parseFloat(taxSlider.value) || 0;
+
+        const tipAmt = subtotal * (tipPercent / 100);
+        const taxAmt = subtotal * (taxPercent / 100);
+        const grandTotal = subtotal + tipAmt + taxAmt;
+        const personalShare = grandTotal / numSplitters;
+
+        const symbol = getCurrencySymbol(selectedCurrency);
+        document.getElementById('summarySubtotal').textContent = `${symbol}${subtotal.toFixed(2)}`;
+        document.getElementById('summaryTip').textContent = `${symbol}${tipAmt.toFixed(2)}`;
+        document.getElementById('summaryTax').textContent = `${symbol}${taxAmt.toFixed(2)}`;
+        document.getElementById('summaryTotal').textContent = `${symbol}${grandTotal.toFixed(2)}`;
+        document.getElementById('shareValue').textContent = personalShare.toFixed(2);
+      }
+
+      function renderParticipants() {
+        // Clear list but keep You (Owner)
+        participantsList.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px dashed rgba(255,255,255,0.05);">
+            <span style="font-size: 0.8rem; font-weight: 700; color: #ffffff;">You (Owner)</span>
+            <span style="font-size: 0.75rem; color: #94a3b8;">Primary Account</span>
+          </div>
+        `;
+
+        // Render each selected contact
+        participants.forEach((p, idx) => {
+          const item = document.createElement('div');
+          item.style.display = 'flex';
+          item.style.justify = 'space-between';
+          item.style.alignItems = 'center';
+          item.style.padding = '0.5rem 0.75rem';
+          item.style.background = 'rgba(168, 85, 247, 0.05)';
+          item.style.border = '1px solid rgba(168, 85, 247, 0.15)';
+          item.style.borderRadius = '10px';
+
+          item.innerHTML = `
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-size: 0.8rem; font-weight: 700; color: #ffffff;">${p.name}</span>
+              <span style="font-size: 0.7rem; color: #a855f7;">${p.phone || 'No phone'}</span>
+            </div>
+            <button class="remove-p-btn" data-index="${idx}" style="background: none; border: none; color: #ef4444; font-size: 0.8rem; cursor: pointer; font-weight: bold; padding: 0.2rem;">Remove</button>
+          `;
+
+          participantsList.appendChild(item);
+        });
+
+        // Add event listeners for removal
+        document.querySelectorAll('.remove-p-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const idx = parseInt(e.target.getAttribute('data-index'));
+            participants.splice(idx, 1);
+            numSplitters = 1 + participants.length;
+            splitCount.textContent = numSplitters;
+            renderParticipants();
+            calculateSplits();
+            showStatus("Removed participant.", "info");
+          });
+        });
+      }
+
+      addContactBtn.addEventListener('click', async () => {
+        const isFlutter = typeof window.flutter_inappwebview !== 'undefined' &&
+                          typeof window.flutter_inappwebview.callHandler === 'function';
+        
+        clearStatus();
+        showStatus("Opening systems contact picker...", "info");
+
+        try {
+          let contact;
+          if (isFlutter) {
+            contact = await window.flutter_inappwebview.callHandler('pickContact');
+          } else {
+            // Browser simulation
+            await new Promise(resolve => setTimeout(resolve, 600));
+            const mockNames = ["Alex Rivera", "David Chen", "Siddharth Rao", "Chloe Dubois"];
+            const mockName = mockNames[Math.floor(Math.random() * mockNames.length)];
+            const mockPhone = "+1 (555) " + Math.floor(100 + Math.random() * 900) + "-" + Math.floor(1000 + Math.random() * 9000);
+            contact = { success: true, name: mockName, phone: mockPhone };
+          }
+
+          const res = (typeof contact === 'string') ? JSON.parse(contact) : contact;
+
+          if (res && res.success) {
+            if (participants.some(p => p.phone === res.phone && res.phone !== '')) {
+              showStatus(`${res.name} is already in the split list.`, "error");
+              return;
+            }
+
+            participants.push({ name: res.name, phone: res.phone });
+            
+            numSplitters = 1 + participants.length;
+            splitCount.textContent = numSplitters;
+            
+            renderParticipants();
+            calculateSplits();
+            showStatus(`Added ${res.name} successfully.`, "success");
+          } else {
+            showStatus(res?.error || "Contact selection cancelled.", "info");
+          }
+        } catch (err) {
+          console.error("pickContact error:", err);
+          showStatus("Contact picker failed: " + err.message, "error");
+        }
+      });
+
+      // Initial run
+      calculateSplits();
+
+      function showStatus(message, type = 'info') {
+        statusMessage.textContent = message;
+        statusMessage.className = `status ${type}`;
+      }
+
+      function clearStatus() {
+        statusMessage.className = 'status';
+        statusMessage.textContent = '';
+      }
+
+      function showUnauthorizedState(reason) {
+        document.getElementById('mainContent').style.display = 'none';
+        document.getElementById('unauthorizedState').style.display = 'block';
+        document.getElementById('unauthorizedReason').textContent = `Reason: ${reason}`;
+      }
+
+      async function initializeSession() {
+        const isFlutter = typeof window.flutter_inappwebview !== 'undefined' &&
+                          typeof window.flutter_inappwebview.callHandler === 'function';
+
+        if (!isFlutter) {
+          jwtToken = 'mock-jwt-token-for-local-browser-dev';
+          username = 'sarthak-dev';
+          welcomeUser.textContent = username;
+          authBadge.textContent = '⚠ Browser Simulation Session';
+          authBadge.style.color = '#a855f7';
+          showStatus("Policy requires Native Container. Running in browser simulation.", "info");
+          return;
+        }
+
+        try {
+          const result = await window.flutter_inappwebview.callHandler('getAuthSession');
+          const session = (typeof result === 'string') ? JSON.parse(result) : result;
+
+          if (session && session.success && session.token) {
+            jwtToken = session.token;
+            username = session.username || 'sarthak';
+            
+            welcomeUser.textContent = username;
+            authBadge.textContent = '✓ Secure Session Connected';
+            authBadge.style.color = '#10b981';
+            showStatus(`Session loaded successfully for ${username}.`, 'success');
+          } else {
+            showUnauthorizedState(session?.error || 'Missing Session Credentials');
+          }
+        } catch (err) {
+          console.error("Handshake failed:", err);
+          showUnauthorizedState('Bridge Connection Error: ' + err.message);
+        }
+      }
+
+      if (typeof window.flutter_inappwebview !== 'undefined' &&
+          typeof window.flutter_inappwebview.callHandler === 'function') {
+        initializeSession();
+      } else {
+        window.addEventListener("flutterInAppWebViewPlatformReady", () => {
+          initializeSession();
+        });
+      }
+
+      settleBtn.addEventListener('click', async () => {
+        const SHARE_AMOUNT = parseFloat(document.getElementById('shareValue').textContent) || 0;
+        if (SHARE_AMOUNT <= 0) {
+          showStatus("Please enter a valid bill amount.", "error");
+          return;
+        }
+
+        clearStatus();
+        settleBtn.disabled = true;
+        settleBtn.textContent = 'Authorizing...';
+
+        const isFlutter = typeof window.flutter_inappwebview !== 'undefined' &&
+                          typeof window.flutter_inappwebview.callHandler === 'function';
+
+        try {
+          const payload = {
+            amount: SHARE_AMOUNT,
+            currency: selectedCurrency,
+            miniAppId: "split-app",
+            description: `Settle dinner split share of ${getCurrencySymbol(selectedCurrency)}${SHARE_AMOUNT.toFixed(2)}`,
+            token: jwtToken
+          };
+
+          let result;
+          if (isFlutter) {
+            result = await window.flutter_inappwebview.callHandler('requestPayment', JSON.stringify(payload));
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 800));
+            result = { success: true, txnId: 'TXN-SIM-' + Math.random().toString(36).substr(2, 9).toUpperCase() };
+          }
+
+          const response = (typeof result === 'string') ? JSON.parse(result) : result;
+
+          if (response && response.success) {
+            showStatus(`Settle successful! Transaction ID: ${response.txnId || 'N/A'}. Exit to verify wallet.`, 'success');
+            settleBtn.textContent = "Settled ✓";
+          } else {
+            showStatus(`Settlement failed: ${response?.message || 'Transaction rejected'}`, 'error');
+            settleBtn.disabled = false;
+            settleBtn.textContent = "Settle My Share";
+          }
+        } catch (err) {
+          console.error("JSBridge error:", err);
+          showStatus("Communication error with Super App Container.", 'error');
+          settleBtn.disabled = false;
+          settleBtn.textContent = "Settle My Share";
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

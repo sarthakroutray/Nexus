@@ -1,0 +1,671 @@
+---
+// Flight Delay Protection Mini-App
+const title = "Flight Delay Protection";
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>{title}</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://cdn-icons-png.flaticon.com https://images.unsplash.com; connect-src 'self' http://localhost:8080 http://10.0.2.2:8080 http://192.168.* ws:;" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif; }
+    
+    body {
+      background: #090d16;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: env(safe-area-inset-top, 1.5rem) 1rem env(safe-area-inset-bottom, 1.5rem) 1rem;
+    }
+
+    #mainContent {
+      width: 100%;
+      max-width: 380px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* Premium Header Card */
+    .header-card {
+      background: linear-gradient(180deg, #131b2e 0%, #0d1324 100%);
+      border: 1px solid #1e293b;
+      border-radius: 20px;
+      padding: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-user {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      background: radial-gradient(circle, #10b981 0%, #047857 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+
+    .user-info h2 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .user-info p {
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+
+    .shield-badge {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.25rem 0.6rem;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    /* Card Layouts */
+    .insure-card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 24px;
+      padding: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 1rem;
+    }
+
+    /* Input Field controls */
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .flight-input {
+      flex: 1;
+      background: #090d16;
+      border: 1px solid #374151;
+      color: #ffffff;
+      padding: 0.85rem 1rem;
+      border-radius: 14px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      outline: none;
+      text-transform: uppercase;
+      transition: border-color 0.2s ease;
+    }
+
+    .flight-input::placeholder {
+      text-transform: none;
+      color: #4b5563;
+    }
+
+    .flight-input:focus {
+      border-color: #10b981;
+    }
+
+    .search-btn {
+      background: #1f2937;
+      border: 1px solid #374151;
+      color: #cbd5e1;
+      padding: 0 1.25rem;
+      border-radius: 14px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .search-btn:active {
+      background: #111827;
+    }
+
+    /* Simulated Itinerary Card */
+    #flightDetailsCard {
+      background: #1f2937;
+      border-radius: 18px;
+      padding: 1rem;
+      margin-bottom: 1.25rem;
+      display: none;
+      border: 1px dashed #374151;
+    }
+
+    .flight-route {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .airport-node {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .airport-code {
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: #ffffff;
+    }
+
+    .airport-name {
+      font-size: 0.7rem;
+      color: #94a3b8;
+    }
+
+    .flight-arrow {
+      font-size: 1.2rem;
+      color: #10b981;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .dash-line {
+      width: 40px;
+      height: 1px;
+      border-top: 2px dashed #374151;
+    }
+
+    .flight-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #cbd5e1;
+      border-top: 1px solid #374151;
+      padding-top: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    /* Plan Pricing Grid */
+    .plan-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .plan-row {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 16px;
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .plan-row.active {
+      border-color: #10b981;
+      background: rgba(16, 185, 129, 0.05);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.05);
+    }
+
+    .plan-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .plan-radio {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #4b5563;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .plan-row.active .plan-radio {
+      border-color: #10b981;
+    }
+
+    .plan-row.active .plan-radio::after {
+      content: '';
+      width: 10px;
+      height: 10px;
+      background: #10b981;
+      border-radius: 50%;
+    }
+
+    .plan-text h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .plan-text p {
+      font-size: 0.7rem;
+      color: #94a3b8;
+    }
+
+    .plan-price {
+      text-align: right;
+    }
+
+    .plan-cost {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #10b981;
+    }
+
+    .plan-payout {
+      font-size: 0.65rem;
+      color: #94a3b8;
+    }
+
+    /* Action Button */
+    .insure-btn {
+      width: 100%;
+      padding: 1rem;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #ffffff;
+      font-size: 0.95rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.1s ease, opacity 0.2s ease;
+      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
+    }
+
+    .insure-btn:active {
+      transform: scale(0.98);
+    }
+
+    .insure-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Status Notifications */
+    .status {
+      margin-top: 1rem;
+      padding: 0.9rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      line-height: 1.4;
+      border: 1px solid transparent;
+      display: none;
+    }
+
+    .status.success { display: block; background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.2); }
+    .status.error { display: block; background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.2); }
+    .status.info { display: block; background: rgba(148, 163, 184, 0.08); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.15); }
+
+    /* Unauthorized State Card */
+    #unauthorizedState {
+      background: rgba(239, 68, 68, 0.05);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: 24px;
+      padding: 2.25rem 1.5rem;
+      text-align: center;
+      max-width: 360px;
+      display: none;
+      box-shadow: 0 10px 25px rgba(239, 68, 68, 0.05);
+    }
+
+    .warning-icon {
+      font-size: 3.5rem;
+      margin-bottom: 1.25rem;
+      animation: alert-pulse 2s infinite;
+    }
+
+    #unauthorizedState h2 {
+      color: #f87171;
+      font-size: 1.3rem;
+      font-weight: 800;
+      margin-bottom: 0.75rem;
+    }
+
+    #unauthorizedState p {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      margin-bottom: 1.5rem;
+    }
+
+    #unauthorizedReason {
+      font-size: 0.75rem;
+      color: #f87171;
+      font-family: monospace;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.5rem;
+      border-radius: 8px;
+      border: 1px solid rgba(239, 68, 68, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <!-- Main Content Dashboard -->
+  <div id="mainContent">
+    <!-- Header Greeting -->
+    <div class="header-card">
+      <div class="header-user">
+        <div class="avatar">🛡️</div>
+        <div class="user-info">
+          <h2 id="welcomeUser">Sarthak</h2>
+          <p id="authBadge">Initializing secure handshake...</p>
+        </div>
+      </div>
+      <div class="shield-badge">
+        <span>ACTIVE COVERAGE</span>
+      </div>
+    </div>
+
+    <!-- Flight Information Entry Card -->
+    <div class="insure-card">
+      <h3 class="section-title">Itinerary Registry</h3>
+      <div class="form-group">
+        <div class="input-row">
+          <input type="text" id="flightNumber" class="flight-input" placeholder="Enter Flight Number (e.g. AA-2405)" />
+          <button id="searchBtn" class="search-btn">Verify</button>
+        </div>
+      </div>
+
+      <!-- Simulated Flight Details Card -->
+      <div id="flightDetailsCard">
+        <div class="flight-route">
+          <div class="airport-node">
+            <span class="airport-code" id="depCode">JFK</span>
+            <span class="airport-name">New York</span>
+          </div>
+          <div class="flight-arrow">
+            <div class="dash-line"></div>
+            <span>✈</span>
+            <div class="dash-line"></div>
+          </div>
+          <div class="airport-node" style="text-align: right;">
+            <span class="airport-code" id="arrCode">LHR</span>
+            <span class="airport-name">London</span>
+          </div>
+        </div>
+        <div class="flight-meta">
+          <div>Carrier: <span id="carrierName" style="font-weight: 700;">American Airlines</span></div>
+          <div>Status: <span style="color: #34d399; font-weight: 700;">ON TIME</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Plan Selection Card -->
+    <div class="insure-card">
+      <h3 class="section-title">Coverage Plans</h3>
+      
+      <div class="plan-grid">
+        <!-- Basic Plan -->
+        <div class="plan-row active" data-premium="4.50" data-payout="50.00" data-name="Basic Protection">
+          <div class="plan-info">
+            <div class="plan-radio"></div>
+            <div class="plan-text">
+              <h4>Basic Protection</h4>
+              <p>For delay > 30 mins</p>
+            </div>
+          </div>
+          <div class="plan-price">
+            <div class="plan-cost">$4.50</div>
+            <div class="plan-payout">Pays $50</div>
+          </div>
+        </div>
+
+        <!-- Premium Plan -->
+        <div class="plan-row" data-premium="9.50" data-payout="120.00" data-name="Premium Protection">
+          <div class="plan-info">
+            <div class="plan-radio"></div>
+            <div class="plan-text">
+              <h4>Premium Cover</h4>
+              <p>For delay > 30 mins</p>
+            </div>
+          </div>
+          <div class="plan-price">
+            <div class="plan-cost">$9.50</div>
+            <div class="plan-payout">Pays $120</div>
+          </div>
+        </div>
+
+        <!-- Elite Plan -->
+        <div class="plan-row" data-premium="14.50" data-payout="200.00" data-name="Elite Protection">
+          <div class="plan-info">
+            <div class="plan-radio"></div>
+            <div class="plan-text">
+              <h4>Elite Cover</h4>
+              <p>For delay > 30 mins</p>
+            </div>
+          </div>
+          <div class="plan-price">
+            <div class="plan-cost">$14.50</div>
+            <div class="plan-payout">Pays $200</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action button -->
+      <button id="protectBtn" class="insure-btn">Protect My Trip</button>
+
+      <!-- Status Notification Message -->
+      <div id="statusMessage" class="status"></div>
+    </div>
+  </div>
+
+  <!-- Unauthorized Page State Overlay -->
+  <div id="unauthorizedState">
+    <div class="warning-icon">⚠️</div>
+    <h2>Unauthorized Session</h2>
+    <p>Your session token with the parent application is invalid, missing, or expired. Please relaunch this service from your secure dashboard.</p>
+    <div id="unauthorizedReason">Reason: Bridge not loaded</div>
+  </div>
+
+  <script type="module">
+    (() => {
+      const protectBtn = document.getElementById('protectBtn');
+      const searchBtn = document.getElementById('searchBtn');
+      const flightInput = document.getElementById('flightNumber');
+      const flightDetailsCard = document.getElementById('flightDetailsCard');
+      const welcomeUser = document.getElementById('welcomeUser');
+      const authBadge = document.getElementById('authBadge');
+      const statusMessage = document.getElementById('statusMessage');
+      const planRows = document.querySelectorAll('.plan-row');
+      
+      let jwtToken = '';
+      let username = '';
+      let selectedPremium = 4.50;
+      let selectedPayout = 50.00;
+      let selectedPlanName = 'Basic Protection';
+      
+      const FLIGHT_DATABASE = {
+        'AA-2405': { dep: 'JFK', arr: 'MIA', carrier: 'American Airlines' },
+        'UA-101': { dep: 'SFO', arr: 'ORD', carrier: 'United Airlines' },
+        'DL-820': { dep: 'ATL', arr: 'LAX', carrier: 'Delta Air Lines' },
+        'BA-227': { dep: 'LHR', arr: 'JFK', carrier: 'British Airways' }
+      };
+
+      // Search Flight verification
+      searchBtn.addEventListener('click', () => {
+        const query = flightInput.value.trim().toUpperCase();
+        if (!query) {
+          showStatus("Please enter a flight number.", "error");
+          return;
+        }
+
+        // Simulate flight search delay
+        searchBtn.disabled = true;
+        searchBtn.textContent = 'Searching...';
+        clearStatus();
+
+        setTimeout(() => {
+          searchBtn.disabled = false;
+          searchBtn.textContent = 'Verify';
+
+          const flight = FLIGHT_DATABASE[query] || { dep: 'JFK', arr: 'LHR', carrier: 'Continental Airlines' };
+          
+          document.getElementById('depCode').textContent = flight.dep;
+          document.getElementById('depCode').nextElementSibling.textContent = flight.dep === 'JFK' ? 'New York' : flight.dep === 'SFO' ? 'San Francisco' : 'Origin';
+          document.getElementById('arrCode').textContent = flight.arr;
+          document.getElementById('arrCode').nextElementSibling.textContent = flight.arr === 'LHR' ? 'London' : flight.arr === 'MIA' ? 'Miami' : 'Destination';
+          document.getElementById('carrierName').textContent = flight.carrier;
+          
+          flightDetailsCard.style.display = 'block';
+          showStatus(`Flight ${query} verified successfully. Choose coverage.`, 'success');
+        }, 500);
+      });
+
+      // Handle Plan Selection Click
+      planRows.forEach(row => {
+        row.addEventListener('click', () => {
+          planRows.forEach(r => r.classList.remove('active'));
+          row.classList.add('active');
+          selectedPremium = parseFloat(row.dataset.premium);
+          selectedPayout = parseFloat(row.dataset.payout);
+          selectedPlanName = row.dataset.name;
+        });
+      });
+
+      function showStatus(message, type = 'info') {
+        statusMessage.textContent = message;
+        statusMessage.className = `status ${type}`;
+      }
+
+      function clearStatus() {
+        statusMessage.className = 'status';
+        statusMessage.textContent = '';
+      }
+
+      function showUnauthorizedState(reason) {
+        document.getElementById('mainContent').style.display = 'none';
+        document.getElementById('unauthorizedState').style.display = 'block';
+        document.getElementById('unauthorizedReason').textContent = `Reason: ${reason}`;
+      }
+
+      async function initializeSession() {
+        const isFlutter = typeof window.flutter_inappwebview !== 'undefined' &&
+                          typeof window.flutter_inappwebview.callHandler === 'function';
+
+        if (!isFlutter) {
+          // Simulation fallback for browser-based development
+          jwtToken = 'mock-jwt-token-for-local-browser-dev';
+          username = 'sarthak-dev';
+          welcomeUser.textContent = username;
+          authBadge.textContent = '⚠ Browser Simulation Session';
+          authBadge.style.color = '#10b981';
+          showStatus("Policy requires Native Container. Running in browser simulation.", "info");
+          return;
+        }
+
+        try {
+          // Call the host bridge handler to acquire the token
+          const result = await window.flutter_inappwebview.callHandler('getAuthSession');
+          const session = (typeof result === 'string') ? JSON.parse(result) : result;
+
+          if (session && session.success && session.token) {
+            jwtToken = session.token;
+            username = session.username || 'sarthak';
+            
+            // Customize UI
+            welcomeUser.textContent = username;
+            authBadge.textContent = '✓ Secure Session Connected';
+            authBadge.style.color = '#10b981';
+            showStatus(`Session loaded successfully for ${username}.`, 'success');
+          } else {
+            showUnauthorizedState(session?.error || 'Missing Session Credentials');
+          }
+        } catch (err) {
+          console.error("Handshake failed:", err);
+          showUnauthorizedState('Bridge Connection Error: ' + err.message);
+        }
+      }
+
+      // Lifecycle Mount check for InAppWebView Bridge
+      if (typeof window.flutter_inappwebview !== 'undefined' &&
+          typeof window.flutter_inappwebview.callHandler === 'function') {
+        initializeSession();
+      } else {
+        window.addEventListener("flutterInAppWebViewPlatformReady", () => {
+          initializeSession();
+        });
+      }
+
+      protectBtn.addEventListener('click', async () => {
+        const flightNum = flightInput.value.trim().toUpperCase();
+        if (!flightNum) {
+          showStatus("Please enter a valid flight number first.", "error");
+          return;
+        }
+
+        clearStatus();
+        protectBtn.disabled = true;
+        protectBtn.textContent = 'Authorizing...';
+
+        const isFlutter = typeof window.flutter_inappwebview !== 'undefined' &&
+                          typeof window.flutter_inappwebview.callHandler === 'function';
+
+        try {
+          const payload = {
+            amount: selectedPremium,
+            currency: "USD",
+            miniAppId: "insure-app",
+            description: `${selectedPlanName} for ${flightNum}`,
+            token: jwtToken
+          };
+
+          let result;
+          if (isFlutter) {
+            result = await window.flutter_inappwebview.callHandler('requestPayment', JSON.stringify(payload));
+          } else {
+            // Browser simulation delay
+            await new Promise(resolve => setTimeout(resolve, 800));
+            result = { success: true, txnId: 'TXN-SIM-' + Math.random().toString(36).substr(2, 9).toUpperCase() };
+          }
+
+          const response = (typeof result === 'string') ? JSON.parse(result) : result;
+
+          if (response && response.success) {
+            showStatus(`Policy issued successfully! Txn ID: ${response.txnId || 'N/A'}. Close page to inspect wallet.`, 'success');
+            protectBtn.textContent = "Trip Protected ✓";
+          } else {
+            showStatus(`Purchase failed: ${response?.message || 'Transaction rejected'}`, 'error');
+            protectBtn.disabled = false;
+            protectBtn.textContent = "Protect My Trip";
+          }
+        } catch (err) {
+          console.error("JSBridge error:", err);
+          showStatus("Communication error with Super App Container.", 'error');
+          protectBtn.disabled = false;
+          protectBtn.textContent = "Protect My Trip";
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
