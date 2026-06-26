@@ -9,8 +9,8 @@ spring.application.name=nexus-backend
 #
 # Required environment variables:
 #   DB_URL       – full JDBC connection string, e.g.:
-#                  jdbc:postgresql://<host>/neondb?sslmode=require&channel_binding=require
-#   DB_USERNAME  – database user (e.g. neondb_owner)
+#                  jdbc:postgresql://<host>/<dbname>?sslmode=require&channel_binding=require
+#   DB_USERNAME  – database user
 #   DB_PASSWORD  – database password
 # ─────────────────────────────────────────────────────────────────────────────
 spring.datasource.url=${DB_URL}
