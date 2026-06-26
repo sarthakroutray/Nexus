@@ -1,0 +1,24 @@
+# Spring Boot 3.x (Backend for Nexus Finance)
+server.port=8080
+spring.application.name=nexus-backend
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Neon PostgreSQL configuration
+# Copy this file to application.properties (gitignored) and fill in your values,
+# OR export the environment variables listed below before running the app.
+#
+# Required environment variables:
+#   DB_URL       – full JDBC connection string, e.g.:
+#                  jdbc:postgresql://<host>/neondb?sslmode=require&channel_binding=require
+#   DB_USERNAME  – database user (e.g. neondb_owner)
+#   DB_PASSWORD  – database password
+# ─────────────────────────────────────────────────────────────────────────────
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# Hibernate / JPA configuration
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect

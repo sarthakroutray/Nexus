@@ -12,44 +12,66 @@ The ecosystem consists of three main building blocks:
 * **Micro-Frontends (Astro)**: Decoupled, sandboxed micro-frontends that perform a secure handshake on mount to customized UI greetings or enter a lock-out "Unauthorized Session" state if credentials are invalid or expired.
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor User as User (Sarthak)
-    participant Host as Flutter Container
-    participant WebView as InAppWebView
-    participant MiniApp as Astro Mini-App
-    participant Backend as Spring Boot Ledger
-    participant Neon as Neon PostgreSQL
+flowchart TB
+    user(["User"])
 
-    Note over User, Neon: 1. Registration & Login Lifecycle
-    User->>Host: Registers new account / Logs in
-    Host->>Backend: POST /api/auth/register (or /login)
-    Backend->>Neon: Verify credentials / Create record
-    Neon-->>Backend: Success
-    Backend-->>Host: JSON {success: true, token: "JWT_TOKEN"}
-    Host->>Host: Store in SecureSessionManager
+    subgraph client["Client layer"]
+        host["Flutter host app<br/>Login, dashboard, session store"]
+        runtime["MiniAppRuntime<br/>InAppWebView + native JS bridge"]
+    end
 
-    Note over User, Neon: 2. Mini-App Launch & Handshake
-    User->>Host: Open Mini-App
-    Host->>WebView: Load local MFE (e.g. port 4321)
-    WebView->>Host: JSBridge.callHandler('getAuthSession')
-    Host-->>WebView: Resolves {success: true, token, username}
-    WebView->>WebView: Store token in memory & customize UI greeting
+    subgraph miniapps["Mini-app layer - Astro"]
+        gold["Gold app<br/>:4321"]
+        insure["Insurance app<br/>:4322"]
+        split["Split app<br/>:4323"]
+    end
 
-    Note over User, Neon: 3. Secured Transaction Flow
-    User->>WebView: Pay action (e.g., Settle $24.60 bill)
-    WebView->>Host: JSBridge.callHandler('requestPayment', payload)
-    
-    Note over Host: Displays Payment Confirmation Modal & Prompts Biometrics
-    Host->>Backend: POST /api/v1/wallet/{username}/deduct<br/>Header Authorization: Bearer <token>
-    
-    Note over Backend: JwtInterceptor verifies signature & binds authenticated user attribute
-    Backend->>Neon: Query and Deduct Balance from Postgres
-    Neon-->>Backend: Ledger Updated
-    Backend-->>Host: Response {success: true, remainingBalance, txnId}
-    Host-->>WebView: Resolves payment receipt
-    WebView->>User: Renders success status with transaction ID
+    subgraph api["Backend layer - Spring Boot"]
+        authApi["Auth API<br/>register / login"]
+        registryApi["Registry API<br/>active mini-app catalog"]
+        walletApi["Wallet API<br/>deduct / credit / transfer"]
+        guard["JWT interceptor<br/>authorized wallet routes"]
+    end
+
+    db[("Neon PostgreSQL")]
+
+    user --> host
+    host -->|authenticate| authApi
+    host -->|load catalog| registryApi
+    host <--> runtime
+
+    runtime -->|loads selected app| gold
+    runtime -->|loads selected app| insure
+    runtime -->|loads selected app| split
+    gold -->|getAuthSession / requestPayment| runtime
+    insure -->|getAuthSession / requestPayment| runtime
+    split -->|getAuthSession / requestPayment| runtime
+
+    runtime -->|payment command + JWT| walletApi
+    walletApi --> guard
+    authApi --> db
+    registryApi --> db
+    guard --> db
+    walletApi -->|receipt + updated balance| runtime
+
+    classDef actor fill:#f8fafc,stroke:#334155,stroke-width:1px,color:#0f172a;
+    classDef client fill:#ecfeff,stroke:#0891b2,stroke-width:1px,color:#164e63;
+    classDef app fill:#f0fdf4,stroke:#16a34a,stroke-width:1px,color:#14532d;
+    classDef backend fill:#fff7ed,stroke:#ea580c,stroke-width:1px,color:#7c2d12;
+    classDef data fill:#f5f3ff,stroke:#7c3aed,stroke-width:1px,color:#3b0764;
+
+    class user actor;
+    class host,runtime client;
+    class gold,insure,split app;
+    class authApi,registryApi,walletApi,guard backend;
+    class db data;
 ```
+
+Runtime flow:
+1. The Flutter host authenticates the user and keeps the active JWT in `SecureSessionManager`.
+2. The dashboard reads the backend registry and opens the selected Astro mini-app in `MiniAppRuntime`.
+3. Mini-apps use the native JS bridge for session lookup and payment requests.
+4. Wallet operations pass through the Spring Boot JWT interceptor before Neon PostgreSQL is updated.
 
 ---
 
